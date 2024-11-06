@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数字轮播展示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+        }
+
+        header {
+            background-color: #333;
+            color: white;
+            text-align: center;
+            padding: 1rem;
+        }
+
+        nav ul {
+            list-style: none;
+            padding: 1rem 0;
+        }
+
+        nav ul li {
+            display: inline;
+            margin: 0 1rem;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+        }
+
+        .carousel-container {
+            max-width: 800px;
+            margin: 2rem auto;
+            position: relative;
+        }
+
+        .carousel {
+            position: relative;
+            overflow: hidden;
+            aspect-ratio: 16/9;
+            background: white;
+            border: 1px solid #ddd;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .carousel-track {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .carousel-track img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+
+        .carousel-track img.active {
+            opacity: 1;
+        }
+
+        .carousel-button {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            padding: 1rem;
+            cursor: pointer;
+            z-index: 1;
+            transition: background-color 0.3s;
+        }
+
+        .carousel-button:hover {
+            background: rgba(0, 0, 0, 0.7);
+        }
+
+        .prev { left: 1rem; }
+        .next { right: 1rem; }
+
+        .url-display {
+            text-align: center;
+            padding: 1rem;
+            background: #f4f4f4;
+            margin: 1rem 0;
+            border-radius: 4px;
+        }
+
+        footer {
+            background-color: #333;
+            color: white;
+            text-align: center;
+            padding: 1rem;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+        }
+
+        /* 添加数字指示器样式 */
+        .carousel-indicators {
+            position: absolute;
+            bottom: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 0.5rem;
+            z-index: 1;
+        }
+
+        .indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            border: 1px solid #333;
+        }
+
+        .indicator.active {
+            background: white;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>数字轮播展示</h1>
+        <nav>
+            <ul>
+                <li><a href="#home">首页</a></li>
+                <li><a href="#about">关于</a></li>
+                <li><a href="#contact">联系我们</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <div class="carousel-container">
+            <div class="carousel">
+                <button class="carousel-button prev" aria-label="上一张">&#10094;</button>
+                <button class="carousel-button next" aria-label="下一张">&#10095;</button>
+                <div class="carousel-track"></div>
+                <div class="carousel-indicators"></div>
+            </div>
+        </div>
+
+        <div class="url-display">
+            <p>当前网页地址：<span id="current-url"></span></p>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2024 数字轮播展示. 保留所有权利.</p>
+    </footer>
+
+    <script>
+        class Carousel {
+            constructor() {
+                this.track = document.querySelector('.carousel-track');
+                this.prevButton = document.querySelector('.prev');
+                this.nextButton = document.querySelector('.next');
+                this.indicatorsContainer = document.querySelector('.carousel-indicators');
+                this.currentIndex = 0;
+                this.images = [];
+                this.indicators = [];
+                this.autoPlayInterval = null;
+                this.init();
+            }
+
+            generateNumberImages(count) {
+                const images = [];
+                for (let i = 1; i <= count; i++) {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    canvas.width = 800;
+                    canvas.height = 400;
+                    
+                    // 设置背景为白色
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    
+                    // 设置文字样式
+                    ctx.fillStyle = 'black';
+                    ctx.font = 'bold 200px SimHei';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    
+                    ctx.fillText(i.toString(), canvas.width/2, canvas.height/2);
+                    
+                    images.push(canvas.toDataURL());
+                }
+                return images;
+            }
+
+            createIndicators(count) {
+                for (let i = 0; i < count; i++) {
+                    const indicator = document.createElement('div');
+                    indicator.classList.add('indicator');
+                    if (i === 0) indicator.classList.add('active');
+                    indicator.addEventListener('click', () => this.goToSlide(i));
+                    this.indicatorsContainer.appendChild(indicator);
+                    this.indicators.push(indicator);
+                }
+            }
+
+            init() {
+                // 生成10张数字图片
+                const imageUrls = this.generateNumberImages(10);
+                
+                // 创建图片元素
+                imageUrls.forEach((src, index) => {
+                    const img = document.createElement('img');
+                    img.src = src;
+                    if (index === 0) {
+                        img.classList.add('active');
+                    }
+                    this.track.appendChild(img);
+                    this.images.push(img);
+                });
+
+                // 创建指示器
+                this.createIndicators(imageUrls.length);
+
+                // 绑定事件
+                this.prevButton.addEventListener('click', () => {
+                    this.slide('prev');
+                    this.resetAutoPlay();
+                });
+                this.nextButton.addEventListener('click', () => {
+                    this.slide('next');
+                    this.resetAutoPlay();
+                });
+                
+                // 开始自动播放
+                this.startAutoPlay();
+                
+                // 显示当前URL
+                this.displayCurrentUrl();
+            }
+
+            startAutoPlay() {
+                this.autoPlayInterval = setInterval(() => this.slide('next'), 3000);
+            }
+
+            resetAutoPlay() {
+                clearInterval(this.autoPlayInterval);
+                this.startAutoPlay();
+            }
+
+            goToSlide(index) {
+                this.images[this.currentIndex].classList.remove('active');
+                this.indicators[this.currentIndex].classList.remove('active');
+                
+                this.currentIndex = index;
+                
+                this.images[this.currentIndex].classList.add('active');
+                this.indicators[this.currentIndex].classList.add('active');
+                
+                this.resetAutoPlay();
+            }
+
+            slide(direction) {
+                this.images[this.currentIndex].classList.remove('active');
+                this.indicators[this.currentIndex].classList.remove('active');
+                
+                if (direction === 'next') {
+                    this.currentIndex = (this.currentIndex + 1) % this.images.length;
+                } else {
+                    this.currentIndex = (this.currentIndex - 1 + this.images.length) % this.images.length;
+                }
+                
+                this.images[this.currentIndex].classList.add('active');
+                this.indicators[this.currentIndex].classList.add('active');
+            }
+
+            displayCurrentUrl() {
+                const urlDisplay = document.getElementById('current-url');
+                urlDisplay.textContent = window.location.href;
+            }
+        }
+
+        // 初始化轮播图
+        document.addEventListener('DOMContentLoaded', () => {
+            new Carousel();
+        });
+    </script>
+</body>
+</html>
